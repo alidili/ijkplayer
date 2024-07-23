@@ -172,7 +172,7 @@ static void control_video_queue_duration(FFPlayer *ffp, VideoState *is) {
     // 获取当前时间
     time_t current_time = time(NULL);
     // 计算时间差
-    double time_diff = difftime(current_time, last_drop_time);   
+    double time_diff = difftime(current_time, last_drop_time) * 1000;   
 
     av_log(NULL, AV_LOG_INFO, "video cached_duration = %lld, nb_packets = %d, time_diff = %f", 
         cached_duration, nb_packets, time_diff);
@@ -210,7 +210,7 @@ static void control_audio_queue_duration(FFPlayer *ffp, VideoState *is) {
     // 获取当前时间
     time_t current_time = time(NULL);
     // 计算时间差
-    double time_diff = difftime(current_time, last_drop_time);
+    double time_diff = difftime(current_time, last_drop_time) * 1000;
 
     av_log(NULL, AV_LOG_INFO, "audio cached_duration = %lld, nb_packets = %d, time_diff = %f",
         cached_duration, nb_packets, time_diff);
@@ -3335,9 +3335,9 @@ static int read_thread(void *arg)
     }
 
     // 获取最大缓存时长配置
-    AVDictionaryEntry *e = av_dict_get(ffp->player_opts, "max_cached_duration", NULL, 0);
-    if (e) {
-        int max_cached_duration = atoi(e->value);
+    AVDictionaryEntry *max_cached_duration_entry = av_dict_get(ffp->player_opts, "max_cached_duration", NULL, 0);
+    if (max_cached_duration_entry) {
+        int max_cached_duration = atoi(max_cached_duration_entry->value);
         if (max_cached_duration <= 0) {
             is->max_cached_duration = 0;
         } else {
@@ -3348,9 +3348,9 @@ static int read_thread(void *arg)
     }
 
     // 获取缓存检测间隔配置
-    AVDictionaryEntry *e = av_dict_get(ffp->player_opts, "cache_check_period", NULL, 0);
-    if (e) {
-        int cache_check_period = atoi(e->value);
+    AVDictionaryEntry *cache_check_period_entry = av_dict_get(ffp->player_opts, "cache_check_period", NULL, 0);
+    if (cache_check_period_entry) {
+        int cache_check_period = atoi(cache_check_period_entry->value);
         if (cache_check_period <= 0) {
             is->cache_check_period = 0;
         } else {
@@ -3361,9 +3361,9 @@ static int read_thread(void *arg)
     }
 
     // 获取缓存删除间隔配置
-    AVDictionaryEntry *e = av_dict_get(ffp->player_opts, "cache_delete_period", NULL, 0);
-    if (e) {
-        int cache_delete_period = atoi(e->value);
+    AVDictionaryEntry *cache_delete_period_entry = av_dict_get(ffp->player_opts, "cache_delete_period", NULL, 0);
+    if (cache_delete_period_entry) {
+        int cache_delete_period = atoi(cache_delete_period_entry->value);
         if (cache_delete_period <= 0) {
             is->cache_delete_period = 0;
         } else {
@@ -3764,10 +3764,10 @@ static int read_thread(void *arg)
         // 获取当前时间
         time_t current_time = time(NULL);
         // 计算时间差
-        double time_diff = difftime(current_time, last_control_queue_time);
+        double time_diff = difftime(current_time, last_control_queue_time) * 1000;
 
         // 缓存区检测
-        if (is->max_cached_duration > 0 && time_diff * 1000 >= is.cache_check_period) {
+        if (is->max_cached_duration > 0 && time_diff >= is.cache_check_period) {
             control_queue_duration(ffp, is);
             last_control_queue_time = current_time;
             av_log(ffp, AV_LOG_INFO, "control_queue_duration time_diff:%f", time_diff);
