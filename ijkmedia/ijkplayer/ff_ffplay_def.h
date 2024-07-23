@@ -285,7 +285,6 @@ typedef struct VideoState {
     int seek_flags;
     int64_t seek_pos;
     int64_t seek_rel;
-    int max_cached_duration;
 #ifdef FFP_MERGE
     int read_pause_return;
 #endif
@@ -419,6 +418,9 @@ typedef struct VideoState {
     SDL_cond  *audio_accurate_seek_cond;
     volatile int initialized_decoder;
     int seek_buffering;
+    int max_cached_duration;
+    int cache_check_period;
+    int cache_delete_period;
 } VideoState;
 
 /* options specified by the user */
