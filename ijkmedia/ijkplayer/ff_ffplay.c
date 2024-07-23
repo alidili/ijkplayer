@@ -77,6 +77,7 @@
 #if defined(__ANDROID__)
 #include "ijksoundtouch/ijksoundtouch_wrap.h"
 #endif
+#include<sys/time.h>
 
 #ifndef AV_CODEC_FLAG2_FAST
 #define AV_CODEC_FLAG2_FAST CODEC_FLAG2_FAST
@@ -147,7 +148,7 @@ static void drop_queue_until_pts(PacketQueue *q, int64_t drop_to_pts) {
 }
 
 // 上一次丢帧的时间
-time_t last_drop_time = 0;
+long last_drop_time = 0;
 
 static void control_video_queue_duration(FFPlayer *ffp, VideoState *is) {
     int time_base_valid = 0;
@@ -170,7 +171,7 @@ static void control_video_queue_duration(FFPlayer *ffp, VideoState *is) {
     }
 
     // 获取当前时间
-    time_t current_time = time(NULL);
+    long current_time = time_now.tv_sec * 1000 + time_now.tv_usec / 1000;
     // 计算时间差
     double time_diff = difftime(current_time, last_drop_time) * 1000;   
 
@@ -208,7 +209,7 @@ static void control_audio_queue_duration(FFPlayer *ffp, VideoState *is) {
     }
 
     // 获取当前时间
-    time_t current_time = time(NULL);
+    long current_time = time_now.tv_sec * 1000 + time_now.tv_usec / 1000;
     // 计算时间差
     double time_diff = difftime(current_time, last_drop_time) * 1000;
 
@@ -3515,7 +3516,7 @@ static int read_thread(void *arg)
     }
 
     // 上一次的检测时间
-    time_t last_control_queue_time = 0;
+    long last_control_queue_time = 0;
 
     for (;;) {
         if (is->abort_request)
@@ -3762,15 +3763,15 @@ static int read_thread(void *arg)
                 <= ((double)ffp->duration / 1000000);
        
         // 获取当前时间
-        time_t current_time = time(NULL);
+        long current_time = time_now.tv_sec * 1000 + time_now.tv_usec / 1000;
         // 计算时间差
-        double time_diff = difftime(current_time, last_control_queue_time) * 1000;
+        double time_diff = difftime(current_time, last_control_queue_time);
 
         // 缓存区检测
-        if (is->max_cached_duration > 0 && time_diff >= is->cache_check_period) {
+        if (is->max_cached_duration > 0 && time_diff > is->cache_check_period) {
             control_queue_duration(ffp, is);
             last_control_queue_time = current_time;
-            av_log(ffp, AV_LOG_INFO, "control_queue_duration time_diff:%f", time_diff);
+            av_log(ffp, AV_LOG_INFO, "control_queue_duration time_diff = %f", time_diff);
         }
 
         if (pkt->stream_index == is->audio_stream && pkt_in_play_range) {
