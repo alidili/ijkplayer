@@ -175,9 +175,9 @@ static void control_video_queue_duration(FFPlayer *ffp, VideoState *is) {
     gettimeofday(&time_now, NULL);
     int64_t current_time = (int64_t)time_now.tv_sec * 1000 + time_now.tv_usec / 1000;
     // 计算时间差
-    int time_diff = current_time - last_drop_time;   
+    int64_t time_diff = current_time - last_drop_time;   
 
-    av_log(NULL, AV_LOG_INFO, "video cached_duration = %lld, nb_packets = %d, time_diff = %d", 
+    av_log(NULL, AV_LOG_INFO, "video cached_duration = %lld, nb_packets = %d, time_diff = %" PRId64, 
         cached_duration, nb_packets, time_diff);
     if (cached_duration > is->max_cached_duration && time_diff > is->cache_delete_period) {
         // drop
@@ -215,9 +215,9 @@ static void control_audio_queue_duration(FFPlayer *ffp, VideoState *is) {
     gettimeofday(&time_now, NULL);
     int64_t current_time = (int64_t)time_now.tv_sec * 1000 + time_now.tv_usec / 1000;
     // 计算时间差
-    int time_diff = current_time - last_drop_time;
+    int64_t time_diff = current_time - last_drop_time;
 
-    av_log(NULL, AV_LOG_INFO, "audio cached_duration = %lld, nb_packets = %d, time_diff = %d",
+    av_log(NULL, AV_LOG_INFO, "audio cached_duration = %lld, nb_packets = %d, time_diff = %" PRId64,
         cached_duration, nb_packets, time_diff);
     if (cached_duration > is->max_cached_duration && time_diff > is->cache_delete_period) {
         // drop
@@ -3771,8 +3771,8 @@ static int read_thread(void *arg)
         gettimeofday(&time_now, NULL);
         int64_t current_time = (int64_t)time_now.tv_sec * 1000 + time_now.tv_usec / 1000;
         // 计算时间差
-        int time_diff = current_time - last_control_queue_time;
-        av_log(ffp, AV_LOG_INFO, "control_queue_duration time_diff = %d", time_diff);
+        int64_t time_diff = current_time - last_control_queue_time;
+        av_log(ffp, AV_LOG_INFO, "control_queue_duration time_diff = %" PRId64, time_diff);
 
         // 缓存区检测
         if (is->max_cached_duration > 0 && time_diff > is->cache_check_period) {
