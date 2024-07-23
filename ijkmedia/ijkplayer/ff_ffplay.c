@@ -176,7 +176,7 @@ static void control_video_queue_duration(FFPlayer *ffp, VideoState *is) {
 
     av_log(NULL, AV_LOG_INFO, "video cached_duration = %lld, nb_packets = %d, time_diff = %f", 
         cached_duration, nb_packets, time_diff);
-    if (cached_duration > is->max_cached_duration && time_diff > is.cache_delete_period) {
+    if (cached_duration > is->max_cached_duration && time_diff > is->cache_delete_period) {
         // drop
         drop_to_pts = is->videoq.last_pkt->pkt.pts - (duration / 2);
         drop_queue_until_pts(&is->videoq, drop_to_pts);
@@ -214,7 +214,7 @@ static void control_audio_queue_duration(FFPlayer *ffp, VideoState *is) {
 
     av_log(NULL, AV_LOG_INFO, "audio cached_duration = %lld, nb_packets = %d, time_diff = %f",
         cached_duration, nb_packets, time_diff);
-    if (cached_duration > is->max_cached_duration && time_diff > is.cache_delete_period) {
+    if (cached_duration > is->max_cached_duration && time_diff > is->cache_delete_period) {
         // drop
         drop_to_pts = is->audioq.last_pkt->pkt.pts - (duration / 2);
         drop_queue_until_pts(&is->audioq, drop_to_pts);
@@ -3767,7 +3767,7 @@ static int read_thread(void *arg)
         double time_diff = difftime(current_time, last_control_queue_time) * 1000;
 
         // 缓存区检测
-        if (is->max_cached_duration > 0 && time_diff >= is.cache_check_period) {
+        if (is->max_cached_duration > 0 && time_diff >= is->cache_check_period) {
             control_queue_duration(ffp, is);
             last_control_queue_time = current_time;
             av_log(ffp, AV_LOG_INFO, "control_queue_duration time_diff:%f", time_diff);
