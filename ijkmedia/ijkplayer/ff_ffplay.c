@@ -171,6 +171,8 @@ static void control_video_queue_duration(FFPlayer *ffp, VideoState *is) {
     }
 
     // 获取当前时间
+    struct timeval time_now;
+    gettimeofday(&time_now,NULL);
     long current_time = time_now.tv_sec * 1000 + time_now.tv_usec / 1000;
     // 计算时间差
     double time_diff = difftime(current_time, last_drop_time) * 1000;   
@@ -209,6 +211,8 @@ static void control_audio_queue_duration(FFPlayer *ffp, VideoState *is) {
     }
 
     // 获取当前时间
+    struct timeval time_now;
+    gettimeofday(&time_now,NULL);
     long current_time = time_now.tv_sec * 1000 + time_now.tv_usec / 1000;
     // 计算时间差
     double time_diff = difftime(current_time, last_drop_time) * 1000;
@@ -3763,6 +3767,8 @@ static int read_thread(void *arg)
                 <= ((double)ffp->duration / 1000000);
        
         // 获取当前时间
+        struct timeval time_now;
+        gettimeofday(&time_now,NULL);
         long current_time = time_now.tv_sec * 1000 + time_now.tv_usec / 1000;
         // 计算时间差
         double time_diff = difftime(current_time, last_control_queue_time);
