@@ -121,11 +121,7 @@ static void drop_queue_until_pts(PacketQueue *q, int64_t drop_to_pts) {
     MyAVPacketList *pkt1 = NULL;
     // 记录删除的包数量
     int del_nb_packets = 0;
-    for (;;) {
-        pkt1 = q->first_pkt;
-        if (!pkt1) {
-            break;
-        }
+    while (pkt1 = q->first_pkt) {
         // 如果是关键帧且时间戳大于等于目标时间戳，跳出循环
         if ((pkt1->pkt.flags & AV_PKT_FLAG_KEY) && pkt1->pkt.pts >= drop_to_pts) {
             break;
@@ -155,32 +151,31 @@ static void drop_queue_until_pts(PacketQueue *q, int64_t drop_to_pts) {
 int64_t last_drop_time = 0;
 
 static void control_video_queue_duration(FFPlayer *ffp, VideoState *is) {
-    // 标志时间基是否有效
-    int time_base_valid = 0;
-    // 缓存时长
-    int64_t cached_duration = -1;
-    // 包数量
-    int nb_packets = 0;
-    // 总时长
-    int64_t duration = 0;
-    // 丢帧的时间戳
-    int64_t drop_to_pts = 0;
-    
+    // 判断时间基是否有效
+    int time_base_valid = is->video_st->time_base.den > 0 && is->video_st->time_base.num > 0;
+    if (!time_base_valid) {
+        return;
+    }
+
     // 加锁
     SDL_LockMutex(is->videoq.mutex);
-    
-    // 判断时间基是否有效
-    time_base_valid = is->video_st->time_base.den > 0 && is->video_st->time_base.num > 0;
-    nb_packets = is->videoq.nb_packets;
-    
-    if (time_base_valid) {
-        if (is->videoq.first_pkt && is->videoq.last_pkt) {
-            // 计算队列中的总时长
-            duration = is->videoq.last_pkt->pkt.pts - is->videoq.first_pkt->pkt.pts;
-            // 计算缓存时长
-            cached_duration = duration * av_q2d(is->video_st->time_base) * 1000;
-        }
+
+    // 包数量
+    int nb_packets = is->videoq.nb_packets;
+    // 缓存时长
+    int64_t cached_duration = -1;
+    // 总时长
+    int64_t duration = 0;
+
+    if (is->videoq.first_pkt && is->videoq.last_pkt) {
+        // 计算队列中的总时长
+        duration = is->videoq.last_pkt->pkt.pts - is->videoq.first_pkt->pkt.pts;
+        // 计算缓存时长
+        cached_duration = duration * av_q2d(is->video_st->time_base) * 1000;
     }
+
+    // 解锁
+    SDL_UnlockMutex(is->videoq.mutex);
 
     // 获取当前时间，毫秒
     struct timeval time_now;
@@ -195,42 +190,37 @@ static void control_video_queue_duration(FFPlayer *ffp, VideoState *is) {
     // 如果大于设定的缓存时长 && 在设置的丢帧时间间隔内
     if (cached_duration > is->max_cached_duration && time_diff > is->cache_delete_period) {
         // 丢弃队列中的一半视频帧数据
-        drop_to_pts = is->videoq.last_pkt->pkt.pts - (duration / 2);
+        int64_t drop_to_pts = is->videoq.last_pkt->pkt.pts - (duration / 2);
         drop_queue_until_pts(&is->videoq, drop_to_pts);
         last_drop_time = current_time;
     }
-    
-    // 解锁
-    SDL_UnlockMutex(is->videoq.mutex);
 }
 
 static void control_audio_queue_duration(FFPlayer *ffp, VideoState *is) {
-    // 标志时间基是否有效
-    int time_base_valid = 0;
-    // 缓存时长
-    int64_t cached_duration = -1;
-    // 包数量
-    int nb_packets = 0;
-    // 总时长
-    int64_t duration = 0;
-    // 丢帧的时间戳
-    int64_t drop_to_pts = 0;
-    
+    int time_base_valid = is->audio_st->time_base.den > 0 && is->audio_st->time_base.num > 0;
+    if (!time_base_valid) {
+        return;
+    }
+
     // 加锁
     SDL_LockMutex(is->audioq.mutex);
 
-    // 判断时间基是否有效
-    time_base_valid = is->audio_st->time_base.den > 0 && is->audio_st->time_base.num > 0;
-    nb_packets = is->audioq.nb_packets;
+    // 包数量
+    int nb_packets = is->audioq.nb_packets;
+    // 缓存时长
+    int64_t cached_duration = -1;
+    // 总时长
+    int64_t duration = 0;
     
-    if (time_base_valid) {
-        if (is->audioq.first_pkt && is->audioq.last_pkt) {
-            // 计算队列中的总时长
-            duration = is->audioq.last_pkt->pkt.pts - is->audioq.first_pkt->pkt.pts;
-            // 计算缓存时长
-            cached_duration = duration * av_q2d(is->audio_st->time_base) * 1000;
-        }
+    if (is->audioq.first_pkt && is->audioq.last_pkt) {
+        // 计算队列中的总时长
+        duration = is->audioq.last_pkt->pkt.pts - is->audioq.first_pkt->pkt.pts;
+        // 计算缓存时长
+        cached_duration = duration * av_q2d(is->audio_st->time_base) * 1000;
     }
+
+    // 解锁
+    SDL_UnlockMutex(is->audioq.mutex);
 
     // 获取当前时间
     struct timeval time_now;
@@ -245,13 +235,10 @@ static void control_audio_queue_duration(FFPlayer *ffp, VideoState *is) {
     // 如果大于设定的缓存时长 && 在设置的丢帧时间间隔内
     if (cached_duration > is->max_cached_duration && time_diff > is->cache_delete_period) {
         // 丢弃队列中的一半音频帧数据
-        drop_to_pts = is->audioq.last_pkt->pkt.pts - (duration / 2);
+        int64_t drop_to_pts = is->audioq.last_pkt->pkt.pts - (duration / 2);
         drop_queue_until_pts(&is->audioq, drop_to_pts);
         last_drop_time = current_time;
     }
-    
-    // 解锁
-    SDL_UnlockMutex(is->audioq.mutex);
 }
 
 static void control_queue_duration(FFPlayer *ffp, VideoState *is) {
