@@ -117,13 +117,18 @@ static AVPacket flush_pkt;
 #define IJKVERSION_GET_MINOR(x)     ((x >>  8) & 0xFF)
 #define IJKVERSION_GET_MICRO(x)     ((x      ) & 0xFF)
 
-static void drop_queue_until_pts(PacketQueue *q, int64_t drop_to_pts) {
+static void drop_queue_until_pts(PacketQueue *q, int64_t drop_to_pts, VideoState *is) {
     MyAVPacketList *pkt1 = NULL;
     // 记录删除的包数量
     int del_nb_packets = 0;
+
     while (pkt1 = q->first_pkt) {
         // 如果是关键帧且时间戳大于等于目标时间戳，跳出循环
         if ((pkt1->pkt.flags & AV_PKT_FLAG_KEY) && pkt1->pkt.pts >= drop_to_pts) {
+            break;
+        }
+        // 如果丢包数量大于等于最大限制，跳转循环
+        if(is->max_drop_count > 0 && del_nb_packets >= is->max_drop_count){
             break;
         }
         q->first_pkt = pkt1->next;
@@ -189,9 +194,13 @@ static void control_video_queue_duration(FFPlayer *ffp, VideoState *is) {
 
     // 如果大于设定的缓存时长 && 在设置的丢帧时间间隔内
     if (cached_duration > is->max_cached_duration && time_diff > is->cache_delete_period) {
-        // 丢弃队列中的一半视频帧数据
-        int64_t drop_to_pts = is->videoq.last_pkt->pkt.pts - (duration / 2);
-        drop_queue_until_pts(&is->videoq, drop_to_pts);
+        // 丢弃队列中的视频帧数据，默认丢一半
+        float max_drop_ratio = is->max_drop_ratio / 100f;
+        if(max_drop_ratio > 1){
+            max_drop_ratio = 1;
+        }
+        int64_t drop_to_pts = is->videoq.first_pkt->pkt.pts + (duration * max_drop_ratio);
+        drop_queue_until_pts(&is->videoq, drop_to_pts, is);
         last_drop_time = current_time;
     }
 }
@@ -234,9 +243,13 @@ static void control_audio_queue_duration(FFPlayer *ffp, VideoState *is) {
 
     // 如果大于设定的缓存时长 && 在设置的丢帧时间间隔内
     if (cached_duration > is->max_cached_duration && time_diff > is->cache_delete_period) {
-        // 丢弃队列中的一半音频帧数据
-        int64_t drop_to_pts = is->audioq.last_pkt->pkt.pts - (duration / 2);
-        drop_queue_until_pts(&is->audioq, drop_to_pts);
+        // 丢弃队列中的音频帧数据，默认丢一半
+        float max_drop_ratio = is->max_drop_ratio / 100f;
+        if(max_drop_ratio > 1){
+            max_drop_ratio = 1;
+        }
+        int64_t drop_to_pts = is->audioq.first_pkt->pkt.pts + (duration * max_drop_ratio);
+        drop_queue_until_pts(&is->audioq, drop_to_pts, is);
         last_drop_time = current_time;
     }
 }
@@ -253,7 +266,6 @@ static void control_queue_duration(FFPlayer *ffp, VideoState *is) {
     if (is->video_st) {
         return control_video_queue_duration(ffp, is);
     }
-    
 }
 
 #if CONFIG_AVFILTER
@@ -3391,6 +3403,33 @@ static int read_thread(void *arg)
     }
     av_log(NULL, AV_LOG_INFO, "config: max_cached_duration = %d, cache_check_period = %d, cache_delete_period = %d", 
         is->max_cached_duration, is->cache_check_period, is->cache_delete_period);
+
+     // 获取允许的最大丢包数量
+    AVDictionaryEntry *max_drop_count_entry = av_dict_get(ffp->player_opts, "max_drop_count", NULL, 0);
+    if (max_drop_count_entry) {
+        int max_drop_count = atoi(max_drop_count_entry->value);
+        if (max_drop_count <= 0) {
+            is->max_drop_count = 0;
+        } else {
+            is->max_drop_count = max_drop_count;
+        }
+    } else {
+        is->max_drop_count = 0;
+    }
+
+    // 获取允许的最大丢包比例
+    AVDictionaryEntry *max_drop_ratio_entry = av_dict_get(ffp->player_opts, "max_drop_ratio", NULL, 0);
+    if (max_drop_ratio_entry) {
+        int max_drop_ratio = atoi(max_drop_ratio_entry->value);
+        if (max_drop_ratio <= 0) {
+            is->max_drop_ratio = 50;
+        } else {
+            is->max_drop_ratio = max_drop_ratio;
+        }
+    } else {
+        is->max_drop_ratio = 50;
+    }
+    av_log(NULL, AV_LOG_INFO, "config: max_drop_count = %d, max_drop_ratio = %d", is->max_drop_count, is->max_drop_ratio);
 
     // 如果设置了缓冲区时间，realtime参数设置为0
     if (is->max_cached_duration > 0) {

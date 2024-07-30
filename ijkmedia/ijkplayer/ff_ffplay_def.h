@@ -421,6 +421,8 @@ typedef struct VideoState {
     int max_cached_duration;
     int cache_check_period;
     int cache_delete_period;
+    int max_drop_count;
+    int max_drop_ratio;
 } VideoState;
 
 /* options specified by the user */
