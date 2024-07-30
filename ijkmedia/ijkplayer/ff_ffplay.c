@@ -195,11 +195,11 @@ static void control_video_queue_duration(FFPlayer *ffp, VideoState *is) {
     // 如果大于设定的缓存时长 && 在设置的丢帧时间间隔内
     if (cached_duration > is->max_cached_duration && time_diff > is->cache_delete_period) {
         // 丢弃队列中的视频帧数据，默认丢一半
-        float max_drop_ratio = is->max_drop_ratio / 100f;
-        if(max_drop_ratio > 1){
-            max_drop_ratio = 1;
+        float max_drop_ratio = is->max_drop_ratio / 100.0f;
+        if(max_drop_ratio > 1.0f){
+            max_drop_ratio = 1.0f;
         }
-        int64_t drop_to_pts = is->videoq.first_pkt->pkt.pts + (duration * max_drop_ratio);
+        int64_t drop_to_pts = is->videoq.first_pkt->pkt.pts + (int64_t)(duration * max_drop_ratio);
         drop_queue_until_pts(&is->videoq, drop_to_pts, is);
         last_drop_time = current_time;
     }
@@ -244,11 +244,11 @@ static void control_audio_queue_duration(FFPlayer *ffp, VideoState *is) {
     // 如果大于设定的缓存时长 && 在设置的丢帧时间间隔内
     if (cached_duration > is->max_cached_duration && time_diff > is->cache_delete_period) {
         // 丢弃队列中的音频帧数据，默认丢一半
-        float max_drop_ratio = is->max_drop_ratio / 100f;
-        if(max_drop_ratio > 1){
-            max_drop_ratio = 1;
+        float max_drop_ratio = is->max_drop_ratio / 100.0f;
+        if(max_drop_ratio > 1.0f){
+            max_drop_ratio = 1.0f;
         }
-        int64_t drop_to_pts = is->audioq.first_pkt->pkt.pts + (duration * max_drop_ratio);
+        int64_t drop_to_pts = is->audioq.first_pkt->pkt.pts + (int64_t)(duration * max_drop_ratio);
         drop_queue_until_pts(&is->audioq, drop_to_pts, is);
         last_drop_time = current_time;
     }
