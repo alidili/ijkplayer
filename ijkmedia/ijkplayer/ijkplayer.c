@@ -671,6 +671,11 @@ int ijkmp_get_loop(IjkMediaPlayer *mp)
     return loop;
 }
 
+long ijkmp_get_cache_duration(IjkMediaPlayer *mp)
+{
+    return ffp_get_cache_duration(mp->ffplayer);
+}
+
 void *ijkmp_get_weak_thiz(IjkMediaPlayer *mp)
 {
     return mp->weak_thiz;

@@ -426,6 +426,20 @@ LABEL_RETURN:
     return loop_count;
 }
 
+static jlong
+IjkMediaPlayer_getCacheDuration(JNIEnv *env, jobject thiz)
+{
+    jlong retval = 0;
+    IjkMediaPlayer *mp = jni_get_media_player(env, thiz);
+    JNI_CHECK_GOTO(mp, env, NULL, "mpjni: getCacheDuration: null mp", LABEL_RETURN);
+
+    retval = ijkmp_get_cache_duration(mp);
+
+LABEL_RETURN:
+    ijkmp_dec_ref_p(&mp);
+    return retval;
+}
+
 static jfloat
 ijkMediaPlayer_getPropertyFloat(JNIEnv *env, jobject thiz, jint id, jfloat default_value)
 {
@@ -1180,6 +1194,7 @@ static JNINativeMethod g_methods[] = {
 
     { "native_setLogLevel",     "(I)V",                     (void *) IjkMediaPlayer_native_setLogLevel },
     { "_setFrameAtTime",        "(Ljava/lang/String;JJII)V", (void *) IjkMediaPlayer_setFrameAtTime },
+    { "getCacheDuration",       "()J",                      (void *) IjkMediaPlayer_getCacheDuration },
 };
 
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved)

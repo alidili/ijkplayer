@@ -4745,6 +4745,42 @@ int ffp_get_loop(FFPlayer *ffp)
     return ffp->loop;
 }
 
+long ffp_get_cache_duration(FFPlayer *ffp)
+{
+    // 判断时间基是否有效
+    VideoState *is = ffp->is;
+    // 如果 VideoState 或视频流为空，返回0
+    if (!is || !is->video_st) {
+        return 0;
+    }
+    int time_base_valid = is->video_st->time_base.den > 0 && is->video_st->time_base.num > 0;
+    if (!time_base_valid) {
+        return 0;
+    }
+
+    // 加锁
+    SDL_LockMutex(is->videoq.mutex);
+
+    // 包数量
+    int nb_packets = is->videoq.nb_packets;
+    // 缓存时长
+    int64_t cached_duration = -1;
+    // 总时长
+    int64_t duration = 0;
+
+    if (is->videoq.first_pkt && is->videoq.last_pkt) {
+        // 计算队列中的总时长
+        duration = is->videoq.last_pkt->pkt.pts - is->videoq.first_pkt->pkt.pts;
+        // 计算缓存时长
+        cached_duration = duration * av_q2d(is->video_st->time_base) * 1000;
+    }
+
+    // 解锁
+    SDL_UnlockMutex(is->videoq.mutex);
+
+    return cached_duration;
+}
+
 int ffp_packet_queue_init(PacketQueue *q)
 {
     return packet_queue_init(q);
